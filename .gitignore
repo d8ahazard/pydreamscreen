@@ -99,3 +99,7 @@ ENV/
 
 # mypy
 .mypy_cache/
+.idea/workspace.xml
+.idea/modules.xml
+.idea/pydreamscreen.iml
+.idea/vcs.xml

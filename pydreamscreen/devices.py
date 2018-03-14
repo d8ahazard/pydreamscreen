@@ -4,7 +4,7 @@ import logging
 import socket
 import sys
 
-from typing import Union, Dict, List, Generator
+from typing import Union, Dict, List
 
 import crc8
 
@@ -12,6 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 
 if '--debug' in sys.argv:
     logging.basicConfig(level=logging.DEBUG)
+
 
 # pylint: disable=invalid-name,too-few-public-methods
 # Gets rid of the annoying warnings
@@ -24,7 +25,7 @@ class _SendReadCurrentStateMessage:
 
     READ_STATE_MESSAGE = b"\xFC\x05\xFF\x30\x01\x0A\x2A"
 
-    def __init__(self, ip: str = '255.255.255.255') -> None:
+    def __init__(self, ip='255.255.255.255'):
         """Handle socket configuration."""
         self.ip = ip
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -48,7 +49,7 @@ class _SendReadCurrentStateMessage:
 class _ReceiveStateMessages:
     """Context manager to receive state messages from the network."""
 
-    def __init__(self, timeout: float = 1.0) -> None:
+    def __init__(self, timeout=1.0):
         """Handle socket configuration."""
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.settimeout(timeout)
@@ -80,17 +81,16 @@ class _ReceiveStateMessages:
             return
 
     @staticmethod
-    def parse_string(string: bytes) -> str:
+    def parse_string(in_string):
         """Take bytes from packet into strimmed string."""
         try:
-            return string.strip(b'\x00').decode('utf8').strip()
+            return in_string.strip(b'\x00').decode('utf8').strip()
         except (ValueError, TypeError):
             _LOGGER.error(str(sys.exc_info()[1]))
         return ''
 
     @staticmethod
-    def parse_message(message: bytes, ip: str) -> \
-            Dict[str, Union[str, int, bytes, datetime.datetime]]:
+    def parse_message(message, ip):
         """Take a packet payload and convert to dictionary."""
         if message[-2] == 1:
             device_type = "DreamScreenHD"
@@ -135,7 +135,7 @@ class _BaseDreamScreenDevice:
 
     # pylint: disable=too-many-instance-attributes
 
-    def __init__(self, ip: str, **kwargs: Dict) -> None:
+    def __init__(self, ip, **kwargs):
         """Device setup."""
         self._ip = ip  # type: str
         self._name = None  # type: str
@@ -172,16 +172,16 @@ class _BaseDreamScreenDevice:
         """Representation of device initialiation."""
         return "{}(ip={!r})".format(type(self).__name__, self.ip)
 
-    def update_current_state(self) -> bool:
+    def update_current_state(self):
         """Force device to get current state."""
-        current_state = get_state(self.ip)
+        current_state = get_state(self.ip, 5)
         if current_state:
             self._update_current_state(current_state)
             return True
         _LOGGER.error("couldn't update state for device %s", self.ip)
         return False
 
-    def _update_current_state(self, state: dict) -> bool:
+    def _update_current_state(self, state):
         if 'device_type' not in state:
             return False
         if state['device_type'] != type(self).__name__:
@@ -195,11 +195,7 @@ class _BaseDreamScreenDevice:
                 setattr(self, "_{}".format(key), value)
         return True
 
-    def _build_packet(self,
-                      namespace: int,
-                      command: int,
-                      payload: Union[List, tuple]) \
-            -> bytearray:
+    def _build_packet(self, namespace, command, payload):
         if not isinstance(payload, (list, tuple)):
             _LOGGER.error("payload type %s != list|tuple", type(payload))
         flags = 17 if self.group_number == 0 else 33
@@ -213,10 +209,7 @@ class _BaseDreamScreenDevice:
         resp.extend(self._crc8(bytearray(resp)))
         return bytearray(resp)
 
-    def _send_packet(self,
-                     data: bytearray,
-                     broadcast: bool = False,
-                     update: bool = True) -> bool:
+    def _send_packet(self, data, broadcast=False, update=False):
         if not isinstance(data, bytearray):
             _LOGGER.error("packet type %s != bytearray", type(data))
             return False
@@ -230,33 +223,33 @@ class _BaseDreamScreenDevice:
         return True
 
     @staticmethod
-    def _crc8(data: bytearray) -> bytes:
+    def _crc8(data):
         message_hash = crc8.crc8()
         message_hash.update(data)
         return message_hash.digest()
 
     @property
-    def device_type(self) -> str:
+    def device_type(self):
         """Return Classname as Device Type."""
         return type(self).__name__
 
     @property
-    def ip(self) -> str:
+    def ip(self):
         """IP Address."""
         return self._ip
 
     @property
-    def update_time(self) -> datetime.datetime:
+    def update_time(self):
         """Time the state was updated."""
         return self._update_time
 
     @property
-    def recent_state_message(self) -> bytes:
+    def recent_state_message(self):
         """Recent State Packet Received."""
         return self._recent_state_message
 
     @property
-    def name(self) -> str:
+    def name(self):
         """Device Name."""
         if self._name is None:
             success = self.update_current_state()
@@ -265,7 +258,7 @@ class _BaseDreamScreenDevice:
         return self._name
 
     @property
-    def group_name(self) -> str:
+    def group_name(self):
         """Group Name."""
         if self._group_name is None:
             success = self.update_current_state()
@@ -274,21 +267,21 @@ class _BaseDreamScreenDevice:
         return self._group_name
 
     @property
-    def group_number(self) -> int:
+    def group_number(self):
         """Group Number."""
         if self._group_number is None:
             self.update_current_state()
         return self._group_number
 
     @property
-    def mode(self) -> int:
+    def mode(self):
         """Selected DreamScreen Mode."""
         if self._mode is None:
             self.update_current_state()
         return self._mode
 
     @mode.setter
-    def mode(self, value: int) -> None:
+    def mode(self, value):
         """Set DreamScreen mode.
 
         0: Off
@@ -306,14 +299,14 @@ class _BaseDreamScreenDevice:
             raise ValueError("value {} out of bounds".format(value))
 
     @property
-    def brightness(self) -> int:
+    def brightness(self):
         """LED Brightness."""
         if self._brightness is None:
             self.update_current_state()
         return self._brightness
 
     @brightness.setter
-    def brightness(self, value: int) -> None:
+    def brightness(self, value):
         """Set LED brightness.
 
         Brightness values between 0 and 100
@@ -328,15 +321,14 @@ class _BaseDreamScreenDevice:
             raise ValueError("value {} out of bounds".format(value))
 
     @property
-    def ambient_color(self) -> bytes:
+    def ambient_color(self):
         """Ambient Scene Color."""
         if self._ambient_color is None:
             self.update_current_state()
         return self._ambient_color
 
     @ambient_color.setter
-    def ambient_color(self,
-                      value: Union[tuple, list, bytes, str]) -> None:
+    def ambient_color(self, value):
         r"""Set DreamScreen ambient color.
 
         Takes tuple/list of RGB
@@ -374,14 +366,14 @@ class _BaseDreamScreenDevice:
             raise TypeError('incomprehensible value given {!r}'.format(value))
 
     @property
-    def ambient_scene(self) -> int:
+    def ambient_scene(self):
         """Ambient Scene."""
         if self._ambient_scene is None:
             self.update_current_state()
         return self._ambient_scene
 
     @ambient_scene.setter
-    def ambient_scene(self, value: int) -> None:
+    def ambient_scene(self, value):
         """Set DreamScreen ambient scene.
 
         Scenes from the app:
@@ -420,7 +412,7 @@ class _BaseDreamScreenDevice:
         raise NotImplementedError
 
 
-class DreamScreen(_BaseDreamScreenDevice):
+class DreamScreen(object, _BaseDreamScreenDevice):
     """Abstract for shared DreamScreen HD & 4K Attributes."""
 
     def __init__(self, *args, **kwargs):
@@ -442,14 +434,14 @@ class DreamScreen(_BaseDreamScreenDevice):
                 'hdmi_input_3_name', 'hdmi_active_channels']
 
     @property
-    def hdmi_input(self) -> int:
+    def hdmi_input(self):
         """hdmi_input."""
         if self._hdmi_input is None:
             self.update_current_state()
         return self._hdmi_input
 
     @hdmi_input.setter
-    def hdmi_input(self, value: int) -> None:
+    def hdmi_input(self, value):
         """Set DreamScreen HDMI input.
 
         0: HDMI Source 1
@@ -466,28 +458,28 @@ class DreamScreen(_BaseDreamScreenDevice):
             raise ValueError("value {} out of bounds".format(value))
 
     @property
-    def hdmi_input_1_name(self) -> str:
+    def hdmi_input_1_name(self):
         """HDMI Input 1 Name."""
         if self._hdmi_input_1_name is None:
             self.update_current_state()
         return self._hdmi_input_1_name
 
     @property
-    def hdmi_input_2_name(self) -> str:
+    def hdmi_input_2_name(self):
         """HDMI Input 2 Name."""
         if self._hdmi_input_2_name is None:
             self.update_current_state()
         return self._hdmi_input_2_name
 
     @property
-    def hdmi_input_3_name(self) -> str:
+    def hdmi_input_3_name(self):
         """HDMI Input 3 Name."""
         if self._hdmi_input_3_name is None:
             self.update_current_state()
         return self._hdmi_input_3_name
 
     @property
-    def hdmi_active_channels(self) -> int:
+    def hdmi_active_channels(self):
         """HDMI Active Channels."""
         if not self._hdmi_active_channels:
             self.update_current_state()
@@ -524,8 +516,7 @@ class SideKick(_BaseDreamScreenDevice):
                 'mode', 'brightness', 'ambient_color', 'ambient_scene']
 
 
-def get_devices(timeout: float = 1.0) \
-        -> List[Union[DreamScreenHD, DreamScreen4K, SideKick]]:
+def get_devices(timeout=1.0):
     """Return all of the currently detected devices on the network."""
     devices = []  # type: List[Union[DreamScreenHD, DreamScreen4K, SideKick]]
     for state in get_states(timeout=timeout):
@@ -538,8 +529,7 @@ def get_devices(timeout: float = 1.0) \
     return devices
 
 
-def get_states(ip: str = '255.255.255.255', timeout: float = 1.0) -> \
-        Generator:
+def get_states(ip='255.255.255.255', timeout=1.0):
     """State message generator for all devices found."""
     with _ReceiveStateMessages(timeout=timeout) as states, \
             _SendReadCurrentStateMessage(ip=ip):
@@ -547,8 +537,7 @@ def get_states(ip: str = '255.255.255.255', timeout: float = 1.0) -> \
             yield state
 
 
-def get_state(ip: str, timeout: float = 1.0) -> \
-        Dict[str, Union[str, int, bytes, datetime.datetime]]:
+def get_state(ip, timeout=1):
     """State message generator for a specific device."""
     for state in get_states(ip=ip, timeout=timeout):
         if state['ip'] == ip:
@@ -562,6 +551,9 @@ def _main_messages():
     import time
 
     class _Timer:
+        def __init__(self):
+            pass
+
         start = None
 
         def __enter__(self):
@@ -594,6 +586,7 @@ def _main_devices():
         device.brightness = 100
         # print("{!r} Brightness -> {}".format(device, device.brightness))
         device.ambient_color = '#FFcc00'
+
 
 if __name__ == '__main__':
     _main_messages()
